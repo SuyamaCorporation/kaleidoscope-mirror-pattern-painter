@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カレイドスコープ対称パターン画家</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center py-6 px-4">
+<h1 class="text-2xl font-bold mb-4 text-purple-300">カレイドスコープ対称パターン画家</h1>
+
+<div class="flex flex-col lg:flex-row gap-6 w-full max-w-5xl">
+  <!-- Controls -->
+  <div class="bg-gray-800 rounded-xl p-4 flex flex-col gap-4 lg:w-64 w-full">
+    <div>
+      <label class="block text-sm font-semibold text-gray-300 mb-1">対称数</label>
+      <div class="grid grid-cols-4 gap-1" role="group" aria-label="対称数選択">
+        <button id="sym6" class="sym-btn bg-purple-600 text-white py-1 rounded text-sm font-bold" aria-label="6倍対称" data-sym="6">6</button>
+        <button id="sym8" class="sym-btn bg-gray-600 text-white py-1 rounded text-sm font-bold" aria-label="8倍対称" data-sym="8">8</button>
+        <button id="sym12" class="sym-btn bg-gray-600 text-white py-1 rounded text-sm font-bold" aria-label="12倍対称" data-sym="12">12</button>
+        <button id="sym16" class="sym-btn bg-gray-600 text-white py-1 rounded text-sm font-bold" aria-label="16倍対称" data-sym="16">16</button>
+      </div>
+    </div>
+
+    <div>
+      <label for="brushColor" class="block text-sm font-semibold text-gray-300 mb-1">ブラシ色</label>
+      <input type="color" id="brushColor" value="#ff6bff" class="w-full h-10 rounded cursor-pointer border-0" aria-label="ブラシ色">
+    </div>
+
+    <div>
+      <label for="brushSize" class="block text-sm font-semibold text-gray-300 mb-1">ブラシサイズ: <span id="brushSizeVal">4</span></label>
+      <input type="range" id="brushSize" min="1" max="30" value="4" class="w-full accent-purple-400" aria-label="ブラシサイズ">
+    </div>
+
+    <div>
+      <label for="brushAlpha" class="block text-sm font-semibold text-gray-300 mb-1">透明度: <span id="brushAlphaVal">100</span>%</label>
+      <input type="range" id="brushAlpha" min="5" max="100" value="100" class="w-full accent-purple-400" aria-label="透明度">
+    </div>
+
+    <div>
+      <label for="bgColor" class="block text-sm font-semibold text-gray-300 mb-1">背景色</label>
+      <input type="color" id="bgColor" value="#0a0a1a" class="w-full h-10 rounded cursor-pointer border-0" aria-label="背景色">
+    </div>
+
+    <button id="clearBtn" class="bg-red-700 hover:bg-red-600 text-white py-2 rounded font-semibold transition" aria-label="キャンバスをクリア">クリア</button>
+    <button id="saveBtn" class="bg-green-700 hover:bg-green-600 text-white py-2 rounded font-semibold transition" aria-label="PNGとして保存">PNG保存</button>
+
+    <div class="text-xs text-gray-400 mt-2">
+      <p>キャンバス中央からマウスを動かして描いてください。</p>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <div class="flex-1 flex justify-center items-start">
+    <canvas id="canvas" width="600" height="600"
+      class="rounded-xl cursor-crosshair border border-gray-600 max-w-full"
+      aria-label="カレイドスコープ描画キャンバス"
+      style="touch-action:none;"></canvas>
+  </div>
+</div>
+
+<script>
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const CX = W / 2, CY = H / 2;
+
+let symmetry = 6;
+let brushColor = '#ff6bff';
+let brushSize = 4;
+let brushAlpha = 1.0;
+let bgColorVal = '#0a0a1a';
+let drawing = false;
+let lastX = null, lastY = null;
+
+function initCanvas() {
+  ctx.fillStyle = bgColorVal;
+  ctx.fillRect(0, 0, W, H);
+}
+initCanvas();
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function drawSymmetric(x, y, px, py) {
+  const dx = x - CX, dy = y - CY;
+  const pdx = px - CX, pdy = py - CY;
+  const angle = (Math.PI * 2) / symmetry;
+
+  ctx.lineWidth = brushSize;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = hexToRgba(brushColor, brushAlpha);
+
+  for (let i = 0; i < symmetry; i++) {
+    const a = angle * i;
+    const cos = Math.cos(a), sin = Math.sin(a);
+
+    // rotated current point
+    const rx = cos*dx - sin*dy;
+    const ry = sin*dx + cos*dy;
+    // rotated previous point
+    const prx = cos*pdx - sin*pdy;
+    const pry = sin*pdx + cos*pdy;
+
+    // draw stroke
+    ctx.beginPath();
+    ctx.moveTo(CX + prx, CY + pry);
+    ctx.lineTo(CX + rx, CY + ry);
+    ctx.stroke();
+
+    // mirror on X axis
+    ctx.beginPath();
+    ctx.moveTo(CX + prx, CY - pry);
+    ctx.lineTo(CX + rx, CY - ry);
+    ctx.stroke();
+  }
+}
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  if (e.touches) {
+    return {
+      x: (e.touches[0].clientX - rect.left) * scaleX,
+      y: (e.touches[0].clientY - rect.top) * scaleY
+    };
+  }
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
+  };
+}
+
+canvas.addEventListener('mousedown', e => {
+  drawing = true;
+  const {x, y} = getPos(e);
+  lastX = x; lastY = y;
+});
+canvas.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const {x, y} = getPos(e);
+  drawSymmetric(x, y, lastX, lastY);
+  lastX = x; lastY = y;
+});
+canvas.addEventListener('mouseup', () => { drawing = false; lastX = null; lastY = null; });
+canvas.addEventListener('mouseleave', () => { drawing = false; lastX = null; lastY = null; });
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  drawing = true;
+  const {x, y} = getPos(e);
+  lastX = x; lastY = y;
+}, {passive:false});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!drawing) return;
+  const {x, y} = getPos(e);
+  drawSymmetric(x, y, lastX, lastY);
+  lastX = x; lastY = y;
+}, {passive:false});
+canvas.addEventListener('touchend', () => { drawing = false; lastX = null; lastY = null; });
+
+// Controls
+document.querySelectorAll('.sym-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    symmetry = parseInt(btn.dataset.sym);
+    document.querySelectorAll('.sym-btn').forEach(b => b.classList.replace('bg-purple-600','bg-gray-600'));
+    btn.classList.replace('bg-gray-600','bg-purple-600');
+  });
+});
+
+document.getElementById('brushColor').addEventListener('input', e => { brushColor = e.target.value; });
+document.getElementById('brushSize').addEventListener('input', e => {
+  brushSize = parseInt(e.target.value);
+  document.getElementById('brushSizeVal').textContent = brushSize;
+});
+document.getElementById('brushAlpha').addEventListener('input', e => {
+  brushAlpha = parseInt(e.target.value) / 100;
+  document.getElementById('brushAlphaVal').textContent = e.target.value;
+});
+document.getElementById('bgColor').addEventListener('input', e => {
+  bgColorVal = e.target.value;
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  ctx.fillStyle = bgColorVal;
+  ctx.fillRect(0, 0, W, H);
+});
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = 'kaleidoscope.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+</script>
+</body>
+</html>
